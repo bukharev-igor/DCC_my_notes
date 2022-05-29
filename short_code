@@ -1,0 +1,30 @@
+library(rmgarch)
+library(PerformanceAnalytics)
+library(dLagM)
+dat <- read.csv(file="AAPL_ret.csv",sep=",",dec=".",header=TRUE,stringsAsFactors=FALSE)
+dt <- cbind(as.numeric(dat$Ret_vtb),as.numeric(dat$Ret_moex))
+colnames(dt) <- c("aapl_ret","spx_ret")
+aapl_spx_dat <- na.omit(dt)
+
+## plot rolling correlations, use nwindow points for corr computation
+nwindow <- 60
+rolCorPlot(ts(aapl_spx_dat[,1]), ts(aapl_spx_dat[,2]), nwindow, level = 0.95,
+  main = "Rolling Correlations AAPL & SPX",SDtest = TRUE, N = 500)
+
+## save corr plot in pdf
+pdf("aapl_spx_roll_corr_plot.pdf")
+rolCorPlot(ts(aapl_spx_dat[,1]), ts(aapl_spx_dat[,2]), nwindow, level = 0.95,
+  main = "Rolling Correlations AAPL & SPX",SDtest = TRUE, N = 500)
+dev.off()
+
+## garch specs
+garchspec <- ugarchspec(mean.model = list(armaOrder = c(0,0)),
+variance.model = list(garchOrder = c(1,1),
+model = "sGARCH"), distribution.model = "norm")
+
+## dcc specs
+dcc.garchvtb.spec <- dccspec(uspec = multispec( replicate(2, garchspec) ),
+dccOrder = c(1,1), distribution = "mvnorm")
+
+## fit dcc
+dcc_fit <- dccfit(dcc.garchvtb.spec , data = na.omit(aapl_spx_dat),fit.control=list(scale=TRUE))
